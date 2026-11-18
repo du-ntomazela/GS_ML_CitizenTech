@@ -34,7 +34,7 @@ Em `02_preparacao.ipynb`:
 
 1. **Limpeza:** tradução das colunas, reconstrução da data/hora a partir da hora codificada (1 = 7h00 … 27 = 20h00), validação de faixas (0–100% de lentidão, contagens ≥ 0). Não havia ausentes nem duplicados.
 2. **Variáveis:** `hora_decimal`, `dia_semana_num`, `horario_pico`, `lentidao_atual`, `variacao_30min` (tendência da última meia hora), `total_ocorrencias`, `ocorrencias_semaforo` e as 16 ocorrências.
-3. **Alvo:** lentidão 30 minutos à frente, calculada dentro de cada dia. O modelo é treinado na **variação** (`próxima − atual`) e a previsão final é `lentidao_atual + variação prevista`. Na primeira tentativa, prevendo o nível direto, o modelo deu 94% da importância à lentidão atual e só copiou esse valor, empatando com a linha de base.
+3. **Alvo:** lentidão 30 minutos à frente, calculada dentro de cada dia. O modelo é treinado na **variação** (`próxima − atual`) e a previsão final é `lentidao_atual + variação prevista`. Na primeira tentativa, prevendo o nível direto, o modelo concentrou quase toda a importância na lentidão atual e só copiou esse valor, sem ganho sobre a linha de base.
 4. **Divisão temporal:** treino = segunda a quinta (100 linhas); teste = sexta (25 linhas), um dia inteiro que o modelo nunca viu. Uma divisão aleatória colocaria janelas vizinhas nos dois lados e daria uma nota otimista.
 
 ## 5. Treino com diferentes hiperparâmetros
@@ -51,11 +51,11 @@ A validação cruzada usa **só o treino**, com `GroupKFold` por dia (4 dobras, 
 
 | Configuração | MAE treino (CV) | MAE validação (CV) |
 | --- | --- | --- |
-| **50 / 3 / 1 (melhor)** | 0,64 | **0,85** |
-| 50 / 5 / 3 | 0,57 | 0,86 |
-| 300 / 3 / 3 | 0,66 | 0,86 |
-| 50 / None / 1 | 0,32 | 0,91 |
-| 100 / None / 1 (pior) | 0,33 | 0,92 |
+| **50 / 3 / 3 (melhor)** | 0,66 | **0,85** |
+| 50 / 3 / 1 (2ª) | 0,64 | 0,85 |
+| 50 / 5 / 3 (3ª) | 0,57 | 0,86 |
+| 50 / None / 1 | 0,32 | 0,92 |
+| 100 / None / 1 (pior) | 0,33 | 0,93 |
 
 ![Treino x validação nas 27 combinações](img/grid_treino_validacao.png)
 
@@ -64,20 +64,20 @@ A validação cruzada usa **só o treino**, com `GroupKFold` por dia (4 dobras, 
 | Modelo | MAE treino | MAE teste | RMSE treino | RMSE teste | R² treino | R² teste |
 | --- | --- | --- | --- | --- | --- | --- |
 | Linha de base (repetir a lentidão atual) | – | 1,19 | – | 1,60 | – | 0,79 |
-| **Random Forest (50 / 3 / 1)** | 0,65 | **0,88** | 0,82 | **1,07** | 0,96 | **0,91** |
+| **Random Forest (50 / 3 / 3)** | 0,68 | **0,90** | 0,88 | **1,10** | 0,96 | **0,90** |
 
 *MAE e RMSE em pontos percentuais de lentidão.*
 
 ![Previsão na sexta-feira](img/previsao_sexta.png)
 
-**Overfitting:** as árvores sem limite de profundidade (`max_depth=None`, folhas de 1 amostra) tiveram o menor erro de treino (0,32) e o maior de validação (0,92): decoraram os 4 dias. A busca escolheu árvores rasas (`max_depth=3`), e a diferença final entre treino e teste ficou em 0,23 ponto, com R² de 0,96 para 0,91. Há um leve sobreajuste, esperado num conjunto pequeno, mas o modelo se mantém num dia novo.
+**Overfitting:** as árvores sem limite de profundidade (`max_depth=None`, folhas de 1 amostra) tiveram o menor erro de treino (0,32) e o maior de validação (0,92 a 0,93): decoraram os 4 dias. A busca escolheu árvores rasas (`max_depth=3`), e a diferença final entre treino e teste ficou em 0,22 ponto, com R² de 0,96 para 0,90. Há um leve sobreajuste, esperado num conjunto pequeno, mas o modelo se mantém num dia novo.
 
-**O que o modelo aprendeu:** o horário responde por cerca de 55% da importância, seguido da tendência dos últimos 30 minutos (18%) e da lentidão atual (13%). Ele sabe que no fim da tarde o trânsito tende a piorar, antes de piorar.
+**O que o modelo aprendeu:** o horário responde por cerca de 62% da importância, seguido da tendência dos últimos 30 minutos (20%) e da lentidão atual (13%). Ele sabe que no fim da tarde o trânsito tende a piorar, antes de piorar.
 
 ![Importância das variáveis](img/importancia.png)
 
 ## 7. Conclusão para o cidadão
 
-O modelo prevê a lentidão da cidade com 30 minutos de antecedência e erro médio de **0,88 ponto percentual**, **26% melhor** do que supor que o trânsito vai continuar como está. Para a central do Semáforo Inteligente, isso significa esticar o verde das vias principais **antes** da fila se formar, principalmente entre 17h e 20h, quando o modelo antecipa a subida da lentidão. Na prática: menos tempo parado para quem volta do trabalho, menos combustível queimado em marcha lenta e ruas mais livres para as ambulâncias no horário mais crítico. A análise também mostra que semáforos com falha coincidem com mais lentidão, o que reforça o valor de monitorar cada cruzamento.
+O modelo prevê a lentidão da cidade com 30 minutos de antecedência e erro médio de **0,90 ponto percentual**, **24% melhor** do que supor que o trânsito vai continuar como está. Para a central do Semáforo Inteligente, isso significa esticar o verde das vias principais **antes** da fila se formar, principalmente entre 17h e 20h, quando o modelo antecipa a subida da lentidão. Na prática: menos tempo parado para quem volta do trabalho, menos combustível queimado em marcha lenta e ruas mais livres para as ambulâncias no horário mais crítico. A análise também mostra que semáforos com falha coincidem com mais lentidão, o que reforça o valor de monitorar cada cruzamento.
 
 **Limitações e próximos passos:** os dados cobrem só 5 dias úteis de dezembro de 2009, sem fins de semana, feriados ou chuva. O próximo passo é retreinar com a série histórica de lentidão da CET de 2001 a 2019 (Kaggle, `danlessa/sao-paulo-traffic-jams-since-2001`), somar chuva por hora do INMET e comparar com XGBoost.
